@@ -1,4 +1,4 @@
-## High performance SIMD operations in `c#`
+## c# High performance SIMD operations
 
 Some example benchmarks to demonstrate how to use vectorization with SIMD in .Net.
 
@@ -92,7 +92,7 @@ Using `Span<float>` instead of an array gives a nice 50 % improvement all by its
 
 ##### Vectors #####
 
-A naïve vectorization could be:
+A naïve vectorization using arrays could be:
 ```
         public void SimpleSumVectors()
         {            
@@ -176,10 +176,25 @@ results[i] = (float)Math.Sqrt((left[i] * right[i] + floatPi) / floatPi);
  ```
 we see a more substantial gain for vectorization (see the project for code):
 ```
-|               Method |     Mean |     Error |    StdDev | Ratio |
-|--------------------- |---------:|----------:|----------:|------:|
-|       ComplexOpsSpan | 781.3 us | 6.9246 us | 5.7824 us |  1.00 |
-| ComplexOpsSpanUnsafe | 783.7 us | 5.9095 us | 4.9347 us |  1.00 |
-| ComplexVectorsNoCopy | 134.7 us | 0.5301 us | 0.4700 us |  0.17 |
+|               Method |     Mean |      Error |     StdDev | Ratio | RatioSD |
+|--------------------- |---------:|-----------:|-----------:|------:|--------:|
+|       ComplexOpsSpan | 754.9 us | 11.2312 us | 10.5057 us |  1.00 |    0.00 |
+| ComplexOpsSpanUnsafe | 753.8 us |  9.4597 us |  8.8486 us |  1.00 |    0.02 |
+| ComplexVectorsNoCopy | 133.2 us |  0.4963 us |  0.4400 us |  0.18 |    0.00 |
 ```
-We have a very respectable 5x improvement in performance (and, as expected, the advantage of doing unsafe operations disappears).
+We have a very respectable > 5x improvement in performance (and, as expected, the advantage of doing unsafe operations disappears).
+
+#### Conclusion ####
+
+If you are going to vectorize your calculations, **benchmarking is a must** to make sure you´re actually improving performance.
+
+A case in point is integer types: only addition, subtraction and bitwise operations are supported.
+
+An example using division and `Vector.Sqrt` gives the following results:
+```
+|                     Method |       Mean |      Error |     StdDev |
+|--------------------------- |-----------:|-----------:|-----------:|
+|          ComplexOpsIntSpan |   364.7 us |  5.4188 us |  4.8036 us |
+| ComplexOpsVectorsNoCopyInt | 1,020.7 us | 35.6401 us | 33.3378 us |
+```
+The vectorized routine **increases** execution time 2.8x since the vectorized code is compiled to use software implementations instead of hardware operations.

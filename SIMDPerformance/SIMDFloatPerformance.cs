@@ -8,39 +8,53 @@ namespace SIMDPerformanceBench
     [DisassemblyDiagnoser(printAsm: true, printSource: true)]
     public class SIMDFloatPerformance
     {
-        public static float[] left, right, results, resultsReference;
+        public static float[] left, right, results;
+        public static int[] leftInt, rightInt, resultsInt;
         public static ReadOnlyMemory<float> leftMemory, rightMemory;
-        UnsafeMemoryFloat leftUnsafe, rightUnsafe, resultsUnsafe;
+        public static ReadOnlyMemory<int> leftMemoryInt, rightMemoryInt;
+        //UnsafeMemoryFloat leftUnsafe, rightUnsafe, resultsUnsafe;
         public static Memory<float> resultsMemory;
+        public static Memory<int> resultsMemoryInt;
         public const int ITEMS = 100003;
         public static float floatPi;
-        public static int floatSlots;
+        public static int floatSlots, intSlots;
 
         [GlobalSetup]
         public void GlobalSetup()
         {
             floatSlots = Vector<float>.Count;
+            intSlots = Vector<int>.Count;
             floatPi = (float)Math.PI;
+
             left = new float[ITEMS];
             leftMemory = new ReadOnlyMemory<float>(left);
+            leftInt = new int[ITEMS];
+            leftMemoryInt = new ReadOnlyMemory<int>(leftInt);
             right = new float[ITEMS];
-            rightMemory = new ReadOnlyMemory<float>(right);
+            rightMemory = new ReadOnlyMemory<float>(right);                        
+            rightInt = new int[ITEMS];
+            rightMemoryInt = new ReadOnlyMemory<int>(rightInt);
             results = new float[ITEMS];
+            resultsInt = new int[ITEMS];
             resultsMemory = new Memory<float>(results);
-            leftUnsafe = new UnsafeMemoryFloat(ITEMS, Vector<byte>.Count, 0);
-            rightUnsafe = new UnsafeMemoryFloat(ITEMS, Vector<byte>.Count, 0);
-            resultsUnsafe = new UnsafeMemoryFloat(ITEMS, Vector<byte>.Count, 0);
+            resultsMemoryInt = new Memory<int>(resultsInt);
+            //leftUnsafe = new UnsafeMemoryFloat(ITEMS, Vector<byte>.Count, 0);
+            //rightUnsafe = new UnsafeMemoryFloat(ITEMS, Vector<byte>.Count, 0);
+            //resultsUnsafe = new UnsafeMemoryFloat(ITEMS, Vector<byte>.Count, 0);
             for (int i = 0; i < ITEMS; i++)
             {
                 left[i] = i;
                 right[i] = i + floatPi;
-                leftUnsafe[i] = i;
-                rightUnsafe[i] = i + floatPi;
+                leftInt[i] = i;
+                rightInt[i] = i / 2;
+                //leftUnsafe[i] = i;
+                //rightUnsafe[i] = i + floatPi;
             }
-            resultsReference = new float[ITEMS];
+            
         }
 
-        [GlobalCleanup]
+
+        /* [GlobalCleanup]
         public void GlobalCleanup()
         {
             if(leftUnsafe != null)
@@ -58,7 +72,7 @@ namespace SIMDPerformanceBench
                 resultsUnsafe.Dispose();
                 resultsUnsafe = null;
             }
-        }
+        } */
 
 
         //[Benchmark]
@@ -174,7 +188,7 @@ namespace SIMDPerformanceBench
             }
         }
 
-        //[Benchmark]
+        /*[Benchmark]
         public unsafe void SimpleSumVectorsUnsafe()
         {
             int numVectors = left.Length / floatSlots;
@@ -185,6 +199,7 @@ namespace SIMDPerformanceBench
             ReadOnlySpan<Vector<float>> leftVecArray = MemoryMarshal.Cast<float, Vector<float>>(leftUnsafeSpan);
             ReadOnlySpan<Vector<float>> rightVecArray = MemoryMarshal.Cast<float, Vector<float>>(rightUnsafeSpan);
             Span<Vector<float>> resultsVecArray = MemoryMarshal.Cast<float, Vector<float>>(resultsUnsafeSpan);
+            
             for (int i = 0; i < numVectors; i++)
             {
                 resultsVecArray[i] = leftVecArray[i] + rightVecArray[i];
@@ -194,7 +209,7 @@ namespace SIMDPerformanceBench
                 //resultsUnsafe[i] = leftUnsafe[i] + rightUnsafe[i];
                 results[i] = left[i] + right[i];
             }
-        }
+        } */
 
         [Benchmark(Baseline = true)]
         public void ComplexOpsSpan()
@@ -220,14 +235,15 @@ namespace SIMDPerformanceBench
             Span<float> resultsSpan = resultsMemory.Span;
             fixed (float* leftBasePtr = &leftSpan[0])
             fixed (float* rightBasePtr = &rightSpan[0])
+            fixed (float* piPtr = &floatPi)
             fixed (float* resultBasePtr = &resultsSpan[0])
             {
                 float* leftCurrPtr = leftBasePtr;
                 float* rightCurrPtr = rightBasePtr;
-                float* resultCurrPtr = resultBasePtr;
+                float* resultCurrPtr = resultBasePtr;                
                 for (int i = 0; i < leftSpan.Length; i++)
                 {
-                    *resultCurrPtr = (float)Math.Sqrt((*leftCurrPtr * *rightCurrPtr + floatPi) / floatPi);
+                    *resultCurrPtr = (float)Math.Sqrt((*leftCurrPtr * *rightCurrPtr + *piPtr) / *piPtr);
                     rightCurrPtr++;
                     leftCurrPtr++;
                     resultCurrPtr++;
@@ -236,7 +252,7 @@ namespace SIMDPerformanceBench
         }
 
         [Benchmark]
-        public void ComplexVectorsNoCopy()
+        public void ComplexOpsVectorsNoCopy()
         {
             int numVectors = left.Length / floatSlots;
             int ceiling = numVectors * floatSlots;
@@ -249,6 +265,43 @@ namespace SIMDPerformanceBench
             for (int i = 0; i < numVectors; i++)
             {
                 resultsVecArray[i] = Vector.SquareRoot((leftVecArray[i] * rightVecArray[i] + piVector) / piVector);
+            }
+            // Finish operation with any numbers leftover
+            for (int i = ceiling; i < left.Length; i++)
+            {
+                results[i] = left[i] + right[i];
+            }
+        }
+
+        [Benchmark]
+        public void ComplexOpsIntSpan()
+        {
+            //results = new float[ITEMS];
+            //resultsMemory = new Memory<float>(results);
+            ReadOnlySpan<int> leftSpan = leftMemoryInt.Span;
+            ReadOnlySpan<int> rightSpan = rightMemoryInt.Span;
+            Span<int> resultsSpan = resultsMemoryInt.Span;
+            int intFactor = -43;
+            for (int i = 0; i < leftSpan.Length; i++)
+            {
+                resultsSpan[i] = (int)Math.Sqrt((leftSpan[i] * rightSpan[i] + intFactor) / intFactor);
+            }
+        }
+
+        [Benchmark]
+        public void ComplexOpsVectorsNoCopyInt()
+        {
+            int numVectors = left.Length / intSlots;
+            int ceiling = numVectors * intSlots;
+            Vector<int> constVector = new Vector<int>(-43);
+            //results = new float[left.Length];
+            //resultsMemory = new Memory<float>(results);
+            ReadOnlySpan<Vector<int>> leftVecArray = MemoryMarshal.Cast<int, Vector<int>>(leftMemoryInt.Span);
+            ReadOnlySpan<Vector<int>> rightVecArray = MemoryMarshal.Cast<int, Vector<int>>(rightMemoryInt.Span);
+            Span<Vector<int>> resultsVecArray = MemoryMarshal.Cast<int, Vector<int>>(resultsMemoryInt.Span);
+            for (int i = 0; i < numVectors; i++)
+            {
+                resultsVecArray[i] = Vector.SquareRoot((leftVecArray[i] * rightVecArray[i] + constVector) / constVector);
             }
             // Finish operation with any numbers leftover
             for (int i = ceiling; i < left.Length; i++)
@@ -286,9 +339,7 @@ namespace SIMDPerformanceBench
             int64Ptr = int64Ptr + alignError;
             int64Ptr += offset;
             bufferIntPtr = new IntPtr(int64Ptr);
-        }
-
-        
+        }        
 
         #region IDisposable Support        
         protected virtual void Dispose(bool disposing)

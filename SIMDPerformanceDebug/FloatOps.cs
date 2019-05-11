@@ -15,7 +15,7 @@ namespace SIMDPerformanceDebug
         internal const int ITEMS = 100003;
         internal static float floatPi;
         internal static int floatSlots;
-
+        
         static FloatOps()
         {
             floatSlots = Vector<float>.Count;            
@@ -132,6 +132,7 @@ namespace SIMDPerformanceDebug
             ReadOnlySpan<Vector<float>> leftVecArray = MemoryMarshal.Cast<float, Vector<float>>(leftUnsafeSpan);
             ReadOnlySpan<Vector<float>> rightVecArray = MemoryMarshal.Cast<float, Vector<float>>(rightUnsafeSpan);
             Span<Vector<float>> resultsVecArray = MemoryMarshal.Cast<float, Vector<float>>(resultsUnsafeSpan);
+            
             for(int i = 0; i < numVectors; i++)
             {
                 resultsVecArray[i] = leftVecArray[i] + rightVecArray[i];
@@ -153,8 +154,8 @@ namespace SIMDPerformanceDebug
 
         public float this[int index]
         {
-            get { return *((float*)bufferIntPtr.ToPointer() + index); }
-            set { *((float*)bufferIntPtr.ToPointer() + index) = value; }
+            get => *((float*)bufferIntPtr.ToPointer() + index);
+            set => *((float*)bufferIntPtr.ToPointer() + index) = value;
         }
 
         private bool disposedValue = false;
@@ -169,7 +170,7 @@ namespace SIMDPerformanceDebug
             bufferGCHandle = GCHandle.Alloc(byteBuffer, GCHandleType.Pinned);
             long int64Ptr = bufferGCHandle.AddrOfPinnedObject().ToInt64();
             long alignError = byteAlignment - int64Ptr % byteAlignment;
-            int64Ptr = int64Ptr + alignError;
+            int64Ptr += alignError;
             int64Ptr += offset;
             bufferIntPtr = new IntPtr(int64Ptr);
         }
