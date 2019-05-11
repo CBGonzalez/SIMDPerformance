@@ -6,7 +6,7 @@ namespace SIMDPerformanceDebug
     {
         static void Main(string[] args)
         {
-            bool success = true;
+            bool success = true, overallSuccess = true;
             FloatOps.SimpleSumArray();
             //Create a reference to compare future runs
             for(int i = 0; i < FloatOps.results.Length; i++)
@@ -15,23 +15,49 @@ namespace SIMDPerformanceDebug
             }
             FloatOps.SimpleSumSpan();
             success = Checkresults();
+            overallSuccess &= success;
             if(!success)
             {
                 Console.WriteLine("Mismatch in SimpleSumSpan");
             }
+            FloatOps.SimpleSumSpanUnsafe();
+            if (!success)
+            {
+                Console.WriteLine("Mismatch in SimpleSumSpanUnsafe");
+            }
+            success = Checkresults();
+            overallSuccess &= success;
+            if (!success)
+            {
+                Console.WriteLine("Mismatch in SimpleSumVectors");
+            }
             FloatOps.SimpleSumVectors();
             success = Checkresults();
+            overallSuccess &= success;
             if (!success)
             {
                 Console.WriteLine("Mismatch in SimpleSumVectors");
             }
             FloatOps.SimpleSumVectorsNoCopy();
             success = Checkresults();
+            overallSuccess &= success;
             if (!success)
             {
                 Console.WriteLine("Mismatch in SimpleSumVectorsNoCopy");
             }
-            Console.WriteLine($"Finished, no errors {success}");
+            FloatOps.SimpleSumVectorsUnsafe();
+            for(int i = 0; i < FloatOps.resultsUnsafe.Length; i++)
+            {
+                success = true;
+                if (FloatOps.resultsUnsafe[i] != FloatOps.resultsReference[i])
+                {
+                    Console.WriteLine($"Result does not match starting at {i}: {FloatOps.resultsReference[i]} vs {FloatOps.results[i]}");
+                    success = false;
+                    break;
+                }
+            }
+            overallSuccess &= success;
+            Console.WriteLine($"Finished, no errors {overallSuccess}");
             return;
 
             bool Checkresults()
