@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Runtime.InteropServices;
 using System.Numerics;
-using System.Collections.Generic;
-using System.Text;
 
 namespace SIMDPerformanceDebug
 {
@@ -131,16 +129,16 @@ namespace SIMDPerformanceDebug
             Span<float> resultsUnsafeSpan = new Span<float>(resultsUnsafe.BufferIntPtr.ToPointer(), numVectors * floatSlots);
             ReadOnlySpan<Vector<float>> leftVecArray = MemoryMarshal.Cast<float, Vector<float>>(leftUnsafeSpan);
             ReadOnlySpan<Vector<float>> rightVecArray = MemoryMarshal.Cast<float, Vector<float>>(rightUnsafeSpan);
-            Span<Vector<float>> resultsVecArray = MemoryMarshal.Cast<float, Vector<float>>(resultsUnsafeSpan);
-            
-            for(int i = 0; i < numVectors; i++)
+            Span<Vector<float>> resultsVecArray = MemoryMarshal.Cast<float, Vector<float>>(resultsUnsafeSpan);            
+            for (int i = 0; i < numVectors; i++)
             {
                 resultsVecArray[i] = leftVecArray[i] + rightVecArray[i];
             }
-            for(int i = numVectors * floatSlots; i < left.Length; i++)
+            for (int i = numVectors * floatSlots; i < left.Length; i++)
             {
                 resultsUnsafe[i] = leftUnsafe[i] + rightUnsafe[i];
             }
+            
         }
 
     }
@@ -151,6 +149,7 @@ namespace SIMDPerformanceDebug
         private GCHandle bufferGCHandle;
         private readonly IntPtr bufferIntPtr;
         private readonly int length;
+        private bool disposedValue = false;
 
         public float this[int index]
         {
@@ -158,7 +157,7 @@ namespace SIMDPerformanceDebug
             set => *((float*)bufferIntPtr.ToPointer() + index) = value;
         }
 
-        private bool disposedValue = false;
+        
 
         public int Length => length;
         public IntPtr BufferIntPtr => bufferIntPtr;

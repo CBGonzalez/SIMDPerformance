@@ -1,6 +1,6 @@
-﻿using System;
+﻿using BenchmarkDotNet.Attributes;
+using System;
 using System.Runtime.InteropServices;
-using BenchmarkDotNet.Attributes;
 using System.Numerics;
 
 namespace SIMDPerformanceBench
@@ -12,7 +12,7 @@ namespace SIMDPerformanceBench
         public static int[] leftInt, rightInt, resultsInt;
         public static ReadOnlyMemory<float> leftMemory, rightMemory;
         public static ReadOnlyMemory<int> leftMemoryInt, rightMemoryInt;
-        //UnsafeMemoryFloat leftUnsafe, rightUnsafe, resultsUnsafe;
+        UnsafeMemoryFloat leftUnsafe, rightUnsafe, resultsUnsafe;
         public static Memory<float> resultsMemory;
         public static Memory<int> resultsMemoryInt;
         public const int ITEMS = 100003;
@@ -38,23 +38,23 @@ namespace SIMDPerformanceBench
             resultsInt = new int[ITEMS];
             resultsMemory = new Memory<float>(results);
             resultsMemoryInt = new Memory<int>(resultsInt);
-            //leftUnsafe = new UnsafeMemoryFloat(ITEMS, Vector<byte>.Count, 0);
-            //rightUnsafe = new UnsafeMemoryFloat(ITEMS, Vector<byte>.Count, 0);
-            //resultsUnsafe = new UnsafeMemoryFloat(ITEMS, Vector<byte>.Count, 0);
+            leftUnsafe = new UnsafeMemoryFloat(ITEMS, Vector<byte>.Count, 0);
+            rightUnsafe = new UnsafeMemoryFloat(ITEMS, Vector<byte>.Count, 0);
+            resultsUnsafe = new UnsafeMemoryFloat(ITEMS, Vector<byte>.Count, 0);
             for (int i = 0; i < ITEMS; i++)
             {
                 left[i] = i;
                 right[i] = i + floatPi;
                 leftInt[i] = i;
                 rightInt[i] = i / 2;
-                //leftUnsafe[i] = i;
-                //rightUnsafe[i] = i + floatPi;
+                leftUnsafe[i] = i;
+                rightUnsafe[i] = i + floatPi;
             }
             
         }
 
 
-        /* [GlobalCleanup]
+        [GlobalCleanup]
         public void GlobalCleanup()
         {
             if(leftUnsafe != null)
@@ -72,7 +72,7 @@ namespace SIMDPerformanceBench
                 resultsUnsafe.Dispose();
                 resultsUnsafe = null;
             }
-        } */
+        }
 
 
         //[Benchmark]
@@ -167,7 +167,7 @@ namespace SIMDPerformanceBench
             }
         }
 
-        //[Benchmark]
+        [Benchmark]
         public void SimpleSumVectorsNoCopy()
         {
             int numVectors = left.Length / floatSlots;
@@ -188,7 +188,7 @@ namespace SIMDPerformanceBench
             }
         }
 
-        /*[Benchmark]
+        [Benchmark]
         public unsafe void SimpleSumVectorsUnsafe()
         {
             int numVectors = left.Length / floatSlots;
@@ -209,7 +209,7 @@ namespace SIMDPerformanceBench
                 //resultsUnsafe[i] = leftUnsafe[i] + rightUnsafe[i];
                 results[i] = left[i] + right[i];
             }
-        } */
+        }
 
         [Benchmark(Baseline = true)]
         public void ComplexOpsSpan()
@@ -222,7 +222,7 @@ namespace SIMDPerformanceBench
             for (int i = 0; i < leftSpan.Length; i++)
             {
                 resultsSpan[i] = (float)Math.Sqrt((leftSpan[i] * rightSpan[i] + floatPi) / floatPi);
-            }
+            }            
         }
 
         [Benchmark]
@@ -274,6 +274,29 @@ namespace SIMDPerformanceBench
         }
 
         [Benchmark]
+        public unsafe void ComplexOpsVectorsUnsafe()
+        {
+            int numVectors = left.Length / floatSlots;
+            int ceiling = numVectors * floatSlots;
+            Vector<float> piVector = new Vector<float>(floatPi);
+            ReadOnlySpan<float> leftUnsafeSpan = new ReadOnlySpan<float>(leftUnsafe.BufferIntPtr.ToPointer(), numVectors * floatSlots);
+            ReadOnlySpan<float> rightUnsafeSpan = new ReadOnlySpan<float>(rightUnsafe.BufferIntPtr.ToPointer(), numVectors * floatSlots);
+            Span<float> resultsUnsafeSpan = new Span<float>(resultsUnsafe.BufferIntPtr.ToPointer(), numVectors * floatSlots);
+            ReadOnlySpan<Vector<float>> leftVecArray = MemoryMarshal.Cast<float, Vector<float>>(leftUnsafeSpan);
+            ReadOnlySpan<Vector<float>> rightVecArray = MemoryMarshal.Cast<float, Vector<float>>(rightUnsafeSpan);
+            Span<Vector<float>> resultsVecArray = MemoryMarshal.Cast<float, Vector<float>>(resultsUnsafeSpan);
+
+            for (int i = 0; i < numVectors; i++)
+            {
+                resultsVecArray[i] = Vector.SquareRoot((leftVecArray[i] * rightVecArray[i] + piVector) / piVector);
+            }
+            for (int i = ceiling; i < left.Length; i++)
+            {
+                //resultsUnsafe[i] = leftUnsafe[i] + rightUnsafe[i];
+                results[i] = left[i] + right[i];
+            }
+        }
+        [Benchmark]
         public void ComplexOpsIntSpan()
         {
             //results = new float[ITEMS];
@@ -317,17 +340,15 @@ namespace SIMDPerformanceBench
         private GCHandle bufferGCHandle;
         private readonly IntPtr bufferIntPtr;
         private readonly int length;
-
-        public float this[int index]
-        {
-            get { return *((float*)bufferIntPtr.ToPointer() + index); }
-            set { *((float*)bufferIntPtr.ToPointer() + index) = value; }
-        }
-        
         private bool disposedValue = false;
 
         public int Length => length;
         public IntPtr BufferIntPtr => bufferIntPtr;
+
+        public float this[int index]
+        {
+            set { *((float*)bufferIntPtr.ToPointer() + index) = value; }
+        }
 
         public UnsafeMemoryFloat(int len, int byteAlignment, int offset)
         {
