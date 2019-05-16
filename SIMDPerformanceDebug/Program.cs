@@ -57,7 +57,7 @@ namespace SIMDPerformanceDebug
                 }
             }
             overallSuccess &= success;
-            Console.WriteLine($"Finished, no errors {overallSuccess}");
+            Console.WriteLine($"Finished. Success: {overallSuccess}");
             return;
 
             bool Checkresults()

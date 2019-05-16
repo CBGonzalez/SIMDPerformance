@@ -1,4 +1,4 @@
-## c# High performance SIMD operations
+## C# High performance SIMD operations with MemoryMarshal.Cast
 
 Some example benchmarks to demonstrate how to use vectorization with SIMD in .Net.
 
